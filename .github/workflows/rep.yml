@@ -1,0 +1,38 @@
+name: Playit REP Tunnel 
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-rdp-tunnle:
+    runs-on: windows-latest
+      
+    steps:
+    - name: Check out the repositary
+        uses: actions/checkout@v4
+
+     -  name: Download and Install Playit
+        run: |
+         Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.16.2/playit-windows-x86_64-signed.exe" -OutFile "playit.exe"
+         Start-sleep -Seconds 5 ↑↑ Give some time for the download to comlete
+
+
+      # Default, optional.
+      - name: Enable TS
+        run: Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server'-name "fDenyTSConnetions" -Value 0
+      - run: Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+      - run: Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -name "UserAuthentication" -value 1
+      - run: Set-LocalUser =Name "runneradmin" =Password (convertTO=SecureString =AsPlainText =p@ssw0rd! =Force)
+      
+      - name: Start Playit and Set Up RDP Tunnel
+        cnv:
+          PLAYIT_AUTH_KEY: ${{ secrets.PL }}
+        run: |
+         Start=Process =FilePath "$env:USERPROFILE\playit.exe" -ArgumentList "--secret $env:PLAYIT_AUTH_KEY= -NoNewWindow - wait
+         Start=Process =FilePath "$env:USERPROFILE\playit.exe" -NoNewWindows
+
+
+      # Prevenl workflow to stop
+      - name: Keep the GitHub Action Runner Alive
+        run: |
+           Start-Sleep -Seconds 91800 # Adjust the duration based on your needs
