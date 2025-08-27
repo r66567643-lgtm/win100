@@ -1,0 +1,50 @@
+name: Playit RDP Tunnel
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-rdp-tunnel:
+    runs-on: windows-latest
+    steps:
+      # Check out the repository (optional, only if you need to access repository files)
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      # Download the playit.gg agent with error handling
+      - name: Download Playit
+        run: |
+          try {
+            Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-amd64-signed.exe" -OutFile "$env:USERPROFILE\playit.exe" -ErrorAction Stop
+          } catch {
+            Write-Output "Error downloading playit.exe: $_"
+            exit 1
+          }
+          Start-Sleep -Seconds 10  # Wait to ensure download completes
+
+      # Enable Remote Desktop settings
+      - name: Enable Remote Desktop
+        run: |
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+          Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
+          $password = ConvertTo-SecureString "${{ secrets.RUNNER_PASSWORD }}" -AsPlainText -Force
+          Set-LocalUser -Name "runneradmin" -Password $password
+
+      # Start playit.gg agent with the authentication key
+      - name: Start Playit and Set Up RDP Tunnel
+        env:
+          PLAYIT_AUTH_KEY: ${{ secrets.PL }}
+        run: |
+          try {
+            Start-Process -FilePath "$env:USERPROFILE\playit.exe" -ArgumentList "--secret $env:PLAYIT_AUTH_KEY" -NoNewWindow -RedirectStandardOutput "playit_output.txt" -Wait
+            Get-Content "playit_output.txt"
+          } catch {
+            Write-Output "Error starting playit.exe: $_"
+            exit 1
+          }
+
+      # Keep the runner alive (set to 6 hours to respect free tier limits)
+      - name: Keep the GitHub Action Runner Alive
+        run: |
+          Start-Sleep -Seconds 21600  # 6 hours
