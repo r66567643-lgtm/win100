@@ -25,17 +25,30 @@ jobs:
       # Enable Remote Desktop settings
       - name: Enable Remote Desktop
         run: |
+          if (-not "${{ secrets.RUNNER_PASSWORD }}") {
+            Write-Output "Error: RUNNER_PASSWORD secret is empty or not set."
+            exit 1
+          }
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
           Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
           Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
-          $password = ConvertTo-SecureString "${{ secrets.RUNNER_PASSWORD }}" -AsPlainText -Force
-          Set-LocalUser -Name "runneradmin" -Password $password
+          try {
+            $password = ConvertTo-SecureString "${{ secrets.RUNNER_PASSWORD }}" -AsPlainText -Force
+            Set-LocalUser -Name "runneradmin" -Password $password
+          } catch {
+            Write-Output "Error setting runneradmin password: $_"
+            exit 1
+          }
 
       # Start playit.gg agent with the authentication key
       - name: Start Playit and Set Up RDP Tunnel
         env:
           PLAYIT_AUTH_KEY: ${{ secrets.PL }}
         run: |
+          if (-not "$env:PLAYIT_AUTH_KEY") {
+            Write-Output "Error: PLAYIT_AUTH_KEY secret is empty or not set."
+            exit 1
+          }
           try {
             Start-Process -FilePath "$env:USERPROFILE\playit.exe" -ArgumentList "--secret $env:PLAYIT_AUTH_KEY" -NoNewWindow -RedirectStandardOutput "playit_output.txt" -Wait
             Get-Content "playit_output.txt"
@@ -44,10 +57,6 @@ jobs:
             exit 1
           }
 
-      # Keep the runner alive (set to 6 hours to respect free tier limits)
-      - name: Keep the GitHub Action Runner Alive
-        run: |
-          Start-Sleep -Seconds 21600  # 6 hours
       # Keep the runner alive (set to 6 hours to respect free tier limits)
       - name: Keep the GitHub Action Runner Alive
         run: |
