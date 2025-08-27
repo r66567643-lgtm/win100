@@ -15,7 +15,7 @@ jobs:
       - name: Download Playit
         run: |
           try {
-            Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-amd64-signed.exe" -OutFile "$env:USERPROFILE\playit.exe" -ErrorAction Stop
+            Invoke-WebRequest -Uri "https://github.com/playit-cloud/playit-agent/releases/download/v0.15.26/playit-windows-x86_64-signed.exe" -OutFile "$env:USERPROFILE\playit.exe" -ErrorAction Stop
           } catch {
             Write-Output "Error downloading playit.exe: $_"
             exit 1
@@ -44,6 +44,10 @@ jobs:
             exit 1
           }
 
+      # Keep the runner alive (set to 6 hours to respect free tier limits)
+      - name: Keep the GitHub Action Runner Alive
+        run: |
+          Start-Sleep -Seconds 21600  # 6 hours
       # Keep the runner alive (set to 6 hours to respect free tier limits)
       - name: Keep the GitHub Action Runner Alive
         run: |
